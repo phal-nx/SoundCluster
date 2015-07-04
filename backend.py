@@ -15,7 +15,7 @@ import pdb
 
 # Initializes Mongo
 mongoClient = MongoClient()
-db = mongoClient.followings
+db = mongoClient.soundcloud
 
 def main():
     # Clear the screen
@@ -46,6 +46,8 @@ def main():
         print( "2) Acquire Likes ")
         print( "3) Print Followings ")
         print( "4) Print Likes ")
+        print( "5) Tally Countries")
+        print( "6) Search Likes")
     except:
         print(colored("Incorrect Login", "white","on_red"))
         command="q"
@@ -66,10 +68,22 @@ def main():
         if command == "5":
             tallyCountries()
 
+        if command == "6":
+            query = input("Enter a phrase")
+            searchLikes(query)
+
 def tallyCountries():
     artistsWithCountries = db.followings.find( { "country": { "$exists": True, "$nin": ["None"]}}, {"country":1, "_id":0})
-    pprint.pprint(Counter([artist['country'] for artist in artistsWithCountries]))
+    pprint.pprint(Counter([artist['country'] for artist in artistsWithCountries if artist['country'] != "None"]))
 
+def searchLikes(query):
+    results = db.likes.find(
+    {"$or":[
+        {"title": query},
+    ]}
+    )
+    table = [[favorite['user']['username'],  favorite['title'][:25], favorite['genre']]   for favorite in results]
+    print(tabulate(table))
     
 
 def printFollowings(client):
@@ -99,7 +113,12 @@ def updateLikes(client):
         favorites = client.get(previousResult.next_href, limit=200,linked_partitioning=1) 
         totalLikes = totalLikes + list(favorites.collection)
         previousResult = favorites
+    db.likes.drop()
     db.likes.insert_many(totalLikes)
+    db.collection.createIndex(
+            { "$**": "text" },
+            { "name": "TextIndex" }
+    )
 
 def updateFollowings(client):
     totalFollowers = list()
@@ -114,6 +133,7 @@ def updateFollowings(client):
         followers = client.get(previousResult.next_href, limit=200,linked_partitioning=1) 
         totalFollowers = totalFollowers + list(followers.collection)
         previousResult = followers
+    db.followings.drop()
     db.followings.insert_many(totalFollowers)
 
 
