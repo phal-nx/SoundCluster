@@ -69,7 +69,7 @@ def main():
             tallyCountries()
 
         if command == "6":
-            query = input("Enter a phrase")
+            query = input("Enter a query: ")
             searchLikes(query)
 
 def tallyCountries():
@@ -77,13 +77,17 @@ def tallyCountries():
     pprint.pprint(Counter([artist['country'] for artist in artistsWithCountries if artist['country'] != "None"]))
 
 def searchLikes(query):
-    results = db.likes.find(
-    {"$or":[
-        {"title": query},
-    ]}
-    )
-    table = [[favorite['user']['username'],  favorite['title'][:25], favorite['genre']]   for favorite in results]
-    print(tabulate(table))
+    results = list(db.likes.find({"$text":{"$search":query}}))
+    if len(results) > 0:
+        table = [[favorite['user']['username'],  favorite['title'][:25], favorite['genre']]   for favorite in results]    
+        headers=["Artist", "Title", "Genre"]
+        print(tabulate(table,headers))
+        if len(results)>1:
+            print(colored(str(len(results)) + " results found",'green'))
+        else:
+            print(colored("1 result found", 'green'))
+    else:
+        print(colored("No Results Found"),'red')
     
 
 def printFollowings(client):
