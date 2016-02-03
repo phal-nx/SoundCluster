@@ -112,8 +112,8 @@ def printLikes(query):
 '''
 Search your likes in the DB
 '''
-def searchLikes(query):
-    results = list(db.likes.find({"$text":{"$search":query}}))
+def searchLikes(query, user_id):
+    results = list(db.likes.find({"$text":{"$search":query}, "user_id": user_id}))
     return results
 
 '''

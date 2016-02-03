@@ -73,12 +73,13 @@ def searchPage():
     if 'access_token' not in session:
         return redirect(url_for('mainPage'))
     accessTok = session['access_token']
-    newClient = soundcloud.Client(access_token=accessTok)
-    
-    query = request.args.get('filterLikes')
-    currentLikes = backend.searchLikes(query) 
-    currentTracks = backend.getTracks(newClient)
+    newClient = soundcloud.Client(access_token=accessTok) 
     currentUser = newClient.get('/me')
+    query = request.args.get('filterLikes')
+    currentLikes = backend.searchLikes(query, currentUser.id) 
+    currentTracks = backend.getTracks(newClient)
+    return render_template('profile.html', user=currentUser, likes = currentLikes, tracks = currentTracks)
+
 if __name__ == '__main__':
     app.secret_key = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?QQ'
     app.run()
