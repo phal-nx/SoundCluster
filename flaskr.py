@@ -64,7 +64,9 @@ def profilePage():
     currentLikes = backend.getLikes(newClient) #newClient.get('/me/favorites')
     currentTracks = backend.getTracks(newClient) #newClient.get('/me/tracks')
     currentUser = newClient.get('/me') 
-    return render_template('profile.html', user=currentUser, likes = currentLikes, tracks = currentTracks )
+    followings = backend.getFollowings(newClient)
+    countries = backend.tallyCountries(followings)
+    return render_template('profile.html', user=currentUser, likes = currentLikes, tracks = currentTracks, countryTally = countries )
 
 @app.route('/search', methods=[ 'GET'])
 def searchPage():
@@ -75,9 +77,8 @@ def searchPage():
     
     query = request.args.get('filterLikes')
     currentLikes = backend.searchLikes(query) 
-    currentTracks = backend.getTracks(newClient) #newClient.get('/me/tracks')
-    currentUser = newClient.get('/me') 
-    return render_template('profile.html', user=currentUser, likes = currentLikes, tracks = currentTracks )
+    currentTracks = backend.getTracks(newClient)
+    currentUser = newClient.get('/me')
 if __name__ == '__main__':
     app.secret_key = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?QQ'
     app.run()
