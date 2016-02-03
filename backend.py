@@ -59,6 +59,11 @@ def main():
         if command == "2":
             updateLikes(scClient)
 
+        if command == "2a":
+            updateTracks(scClient)
+        if command == "2b":
+            printTracks(scClient)
+
         if command == "3":
             printFollowings(scClient)
 
@@ -76,10 +81,10 @@ def tallyCountries():
     artistsWithCountries = db.followings.find( { "country": { "$exists": True, "$nin": ["None"]}}, {"country":1, "_id":0})
     pprint.pprint(Counter([artist['country'] for artist in artistsWithCountries if artist['country'] != "None"]))
 
-def searchLikes(query):
+def printLikes(query):
     results = list(db.likes.find({"$text":{"$search":query}}))
     if len(results) > 0:
-        table = [[favorite['user']['username'],  favorite['title'][:25], favorite['genre']]   for favorite in results]    
+        table = [[favorite['username'],  favorite['title'][:25], favorite['genre']]   for favorite in results]    
         headers=["Artist", "Title", "Genre"]
         print(tabulate(table,headers))
         if len(results)>1:
@@ -90,6 +95,10 @@ def searchLikes(query):
         print(colored("No Results Found"),'red')
     
 
+def searchLikes(query):
+    results = list(db.likes.find({"$text":{"$search":query}}))
+    return results
+
 def printFollowings(client):
     print('You are following', colored( client.get('/me').followings_count,'green'),'users')
     followings = db.followings.find()
@@ -97,10 +106,18 @@ def printFollowings(client):
     headers=["Username", "Country", "Followers"]
     print(tabulate(table, headers, tablefmt="fancy_grid"))
 
+def printTracks(client):
+    tracks = db.tracks.find()
+    #print('You are following', colored( len(tracks),'green'),'users')
+    table = [[track['sharing'],  track['title'], track['genre']]   for track in tracks]
+    headers=["Sharing", "Title", "Followers"]
+    print(tabulate(table, headers, tablefmt="fancy_grid"))
+
+
 def printLikes(client):
     favorites = db.likes.find()
     print('You have liked', colored( client.get('/me').public_favorites_count,'green'),'tracks')
-    table = [[favorite['user']['username'],  favorite['title'][:25], favorite['genre']]   for favorite in favorites]
+    table = [[favorite['username'],  favorite['title'][:25], favorite['genre']]   for favorite in favorites]
     headers=["Username", "Title", "Genre"]
     print(tabulate(table, headers, tablefmt="grid"))
 
@@ -118,27 +135,56 @@ def updateLikes(client):
         totalLikes = totalLikes + list(favorites.collection)
         previousResult = favorites
     db.likes.drop()
-    db.likes.insert_many(totalLikes)
-    db.collection.createIndex(
-            { "$**": "text" },
-            { "name": "TextIndex" }
-    )
+    likes = [{'url':like.permalink_url,'username':like.user['username'],  'title': like.title, 'genre':like.genre, 'downloadable': like.downloadable, 'artwork_url' : like.artwork_url if like.artwork_url else "http://none.com", 'plays': like.playback_count, 'favorited':like.favoritings_count, 'duration': like.duration }   for like in totalLikes ]# if hasattr(like, 'username') and hasattr(like, 'title') and hasattr(like, 'genre') and hasattr(like, 'downloadable') and hasattr(like, 'artwork_url') and hasattr(like, 'plays') and hasattr(like, 'favorited') and hasattr(like, 'duration')]
+    if likes: 
+        db.likes.insert_many(likes)
+        db.likes.create_index( [('username', "text"),('genre', "text"),('title', "text")])
+
+def getLikes(client):
+    likes = db.likes.find()
+    return likes
+
+def updateTracks(client):
+    totalTracks = list()
+    # start paging through results, 200 at a time
+    tracks = client.get('/me/tracks', limit=200,
+                        linked_partitioning=1)
+    totalTracks += [track for track in (tracks.collection)]
+    totalTracks = totalTracks + list(tracks.collection)
+    previousResult = tracks
+    # if there are more than 200 followers, keeps getting them
+    while hasattr(previousResult,'next_href'):
+        tracks = client.get(previousResult.next_href, limit=200,linked_partitioning=1) 
+        totalTracks = totalTracks + list(tracks.collection)
+        previousResult = tracks
+    db.tracks.drop()
+    tracks = [{'username':track.user['username'],  'title': track.title, 'genre':track.genre, 'downloadable': track.downloadable, 'artwork_url' : track.artwork_url, 'plays': track.playback_count, 'favorited':track.favoritings_count, 'duration': track.duration, 'sharing': track.sharing,'url': track.permalink_url } for track in totalTracks]
+    if tracks:
+        db.tracks.insert_many(tracks)
+
+def getTracks(client):
+    tracks = db.tracks.find()
+    return tracks
 
 def updateFollowings(client):
-    totalFollowers = list()
+    totalFollowings = list()
     # start paging through results, 200 at a time
     followers = client.get('/me/followings', limit=200,
                         linked_partitioning=1)
-    totalFollowers = totalFollowers + [follower for follower in (followers.collection)]
+    if followers.collection != None:
+    	totalFollowings = totalFollowings + [follower for follower in (followers.collection)]
     previousResult = followers
 
     # if there are more than 200 followers, keeps getting them
-    while hasattr(previousResult,'next_href'):
+    while hasattr(previousResult,'next_href') and previousResult.next_href != None:
         followers = client.get(previousResult.next_href, limit=200,linked_partitioning=1) 
-        totalFollowers = totalFollowers + list(followers.collection)
+        if followers.collection != None:
+            totalFollowings = totalFollowings + list(followers.collection)
         previousResult = followers
     db.followings.drop()
-    db.followings.insert_many(totalFollowers)
+
+    followings = [{'username':following.username,  'country':following.country, 'full_name': following.full_name, 'city': following.city,'track_count': following.track_count, 'followers_count':following.followers_count } for following in totalFollowings]
+    db.followings.insert_many(list(followings))
 
 
 if __name__ == '__main__':
