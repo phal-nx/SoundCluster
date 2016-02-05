@@ -37,15 +37,9 @@ def mainPage(entries=None):
 
 @app.route('/authenticate')
 def authenticate():
-    #client = soundcloud.Client(client_id='8e906fb7c324fc6640fd3fc08ef9d1ff',
-    #    client_secret='aacd3a93bdfcf1dd65ed33497f091800',
-    #    redirect_uri='http://localhost:5000/profile')#url_for('profilePage'))
     code = request.args.get('code')
     token = client.exchange_token(code)
     session['access_token'] = token.access_token
-    #for x in (attribute for attribute in dir(client.get('/me')) if not attribute.startswith('__')):
-        #if type(x) == 'str':
-    #    session[x] = str(client.get('/me').x)
     return redirect(url_for('profilePage'))
 
 @app.route('/logout')
@@ -76,7 +70,7 @@ def searchPage():
     newClient = soundcloud.Client(access_token=accessTok) 
     currentUser = newClient.get('/me')
     query = request.args.get('filterLikes')
-    currentLikes = backend.searchLikes(query, currentUser.id) 
+    currentLikes = backend.searchLikes(query, currentUser.id, currentUser.username) 
     currentTracks = backend.getTracks(newClient)
     return render_template('profile.html', user=currentUser, likes = currentLikes, tracks = currentTracks)
 

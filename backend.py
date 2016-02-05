@@ -6,9 +6,6 @@ import soundcloud
 import getpass
 import pdb
 
-
-
-# Initializes Mongo
 mongoClient = MongoClient()
 db = mongoClient.soundcloud
 
@@ -26,8 +23,10 @@ def tallyCountries(followings):
 '''
 Search your likes in the DB
 '''
-def searchLikes(query, user_id):
-    results = list(db.likes.find({"$text":{"$search":query}, "user_id": user_id}))
+def searchLikes(query, user_id, user_name):
+   # results = list(db.likes.find({"$text":{"$search":query}, "user_id": user_id}))
+    results = list(db.likes.find( { "$and":[ {"$text":{"$search":query}} , {"user_info":{"user":user_name, "user_id": user_id}}]} ))
+    
     return results
 
 '''
@@ -39,6 +38,7 @@ def updateLikes(client):
     favorites = client.get('/me/favorites', limit=200,
                         linked_partitioning=1)
     user_id = client.get('/me/').id
+    user_name = client.get('/me/').username
     totalLikes = totalLikes + [favorite for favorite in (favorites.collection)]
     previousResult = favorites
 
@@ -51,16 +51,31 @@ def updateLikes(client):
     likes = list()
     for like in totalLikes:
         try:
-            likes.append({'user_id':user_id, 'url':like.permalink_url,'username':like.user['username'],  'title': like.title, 'genre':like.genre, 'downloadable': like.downloadable, 'artwork_url' : like.artwork_url if like.artwork_url else "http://none.com",   'duration': like.duration })
-        except:
-            pdb.set_trace()
-    if likes: 
-        db.likes.insert_many(likes)
-        db.likes.create_index( [('username', "text"),('genre', "text"),('title', "text")])
+            #Checks to see if song already exists before inserting individually
+            if db.likes.find( { 'song_id':like.id}).count() > 0:
+                #Append current user_id to array if it doesn't exist
+                db.likes.update_one({"song_id": like.id}, {"$addToSet": {"user_info": {"user_id":user_id, 'user':user_name}}})
+            else:
+                db.likes.insert({'user_info':[{'user_id':user_id, 'user':user_name}], 'song_id':like.id ,'url':like.permalink_url,'username':like.user['username'],  'title': like.title, 'genre':like.genre, 'downloadable': like.downloadable, 'artwork_url' : like.artwork_url,   'duration': like.duration })
 
+                #Old version that did bulk insert
+                #likes.append({'user_info':[{'user_id':user_id, 'user':user_name}], 'song_id':id ,'url':like.permalink_url,'username':like.user['username'],  'title': like.title, 'genre':like.genre, 'downloadable': like.downloadable, 'artwork_url' : like.artwork_url if like.artwork_url else "http://none.com",   'duration': like.duration })
+
+        except Exception as inst:
+            print (inst.args)
+            
+            #pdb.set_trace()
+            
+    db.likes.create_index( [('username', "text"),('genre', "text"),('title', "text")])
+
+
+'''
+Takes a client, returns their likes
+'''
 def getLikes(client):
     user_id = client.get('/me/').id
-    likes = db.likes.find( { 'user_id': user_id } )
+    user_name = client.get('/me/').username
+    likes = db.likes.find( {"user_info":{ 'user_id': user_id, 'user': user_name}})
     return likes
 
 

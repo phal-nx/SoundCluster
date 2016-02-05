@@ -2,7 +2,6 @@
 from termcolor import colored
 from tabulate import tabulate
 from collections import Counter
-#from pymongo import mongoClient
 from backend import *
 import pprint
 import os
@@ -10,7 +9,6 @@ import soundcloud
 import getpass
 import pdb
 
-#db = mongoClient.soundcloud
 
 
 def main():
