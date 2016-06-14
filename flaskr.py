@@ -27,7 +27,8 @@ db = mongoClient.soundcloud
 
 client = soundcloud.Client(client_id='8e906fb7c324fc6640fd3fc08ef9d1ff',
     client_secret='aacd3a93bdfcf1dd65ed33497f091800',
-    redirect_uri='http://1e925256.ngrok.io/authenticate')
+    redirect_uri='http://localhost:5000/authenticate')
+#    redirect_uri='http://1e925256.ngrok.io/authenticate')
 
 @app.route('/')
 def mainPage(entries=None):
